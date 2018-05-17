@@ -32,7 +32,7 @@ Just execute and wait until you can access to http://{{YOUR_IP}}:9000/
 docker-compose up -d
 ```
 
-## Register your ci_runner
+## Register your ci-runner
 
 Go to Settings > Runners and copy the token that appears in red text color.
 
@@ -57,5 +57,56 @@ This will execute the `gitlab-runner register` command inside the runner instanc
     - docker
 7. Please enter the default Docker image (e.g. ruby:2.1):
     - alpine
+
+## Modify your ci-runner to run on aws spot.
+
+We configured in the docker-compose.yml a volume for the runner instance in which the config.toml file of the runner that we've created in the previous step.
+
+Now, we should modify it to configure it for run on aws spot instances. For that you can edit the config.toml file and add the following values:
+
+```
+concurrent = 1
+check_interval = 0
+
+[[runners]]
+  name = "aws"
+  url = "https://git.dpstudios.es/"
+  token = "{{RUNNER_TOKEN}}"
+  executor = "docker+machine"
+  limit = 1
+  [runners.docker]
+    image = "alpine"
+    privileged = true
+    disable_cache = true
+  [runners.cache]
+    Type = "s3"
+    ServerAddress = "s3.amazonaws.com"
+    AccessKey = "{{YOUR_AWS_IAM_USER_ACCESS_KEY}}"
+    SecretKey = "{{YOUR_AWS_IAM_USER_SECRET_KEY}}"
+    BucketName = "gitlab-ci-runners-cache"
+    BucketLocation = "{{YOUR_AMAZON_REGION}}"
+    Shared = true
+  [runners.machine]
+    IdleCount = 0
+    IdleTime = 600
+    MachineDriver = "amazonec2"
+    MachineName = "gitlab-docker-machine-%s"
+    OffPeakTimezone = ""
+    OffPeakIdleCount = 0
+    OffPeakIdleTime = 0
+    MachineOptions = [
+      "amazonec2-access-key={{YOUR_AWS_IAM_USER_ACCESS_KEY}}",
+      "amazonec2-secret-key={{YOUR_AWS_IAM_USER_SECRET_KEY}}",
+      "amazonec2-region={{YOUR_AMAZON_REGION}}",
+      "amazonec2-vpc-id={{YOUR_DEFAULT_VPC_ID}}",
+      "amazonec2-use-private-address=false",
+      "amazonec2-tags=runner-manager-name,aws,gitlab,true,gitlab-runner-autoscale,true",
+      "amazonec2-security-group=docker-machine-scaler",
+      "amazonec2-instance-type=m3.medium",
+      "amazonec2-request-spot-instance=true",
+      "amazonec2-spot-price=0.10",
+      "amazonec2-block-duration-minutes=60"
+    ]
+```
 
 That's all, refresh the website and you'll have a new ci-runner waiting!
